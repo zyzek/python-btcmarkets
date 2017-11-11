@@ -2,7 +2,7 @@ import time
 import hmac, hashlib
 import urllib.request
 import base64, json
-from typing import Optional
+from typing import Optional, List
 from collections import OrderedDict
 
 from config import api_url, public_key, private_key
@@ -102,22 +102,54 @@ class RESTInterface:
     def create_order(self, instrument: str, currency: str,
                      price: int, volume: int,
                      order_side: str, order_type: str):
+        """
+        Creates a market order with the specified parameters:
+            instrument: the base currency
+            currency:   the quoted currency
+            price:      the price in currency per unit of instrument
+            volume:     a quantity of the instrument
+            order_side: "Bid" or "Ask"
+            order_type: "Market" or "Limit".
+
+        Returns: {'success': bool, 'errorCode': int, 'errorMessage': str,
+                  'id': int, 'clientRequestId': str}
+
+        "Market"-type orders will ignore the price parameter, filling at the best
+        available price.
+        Currently the "clientRequestId" data parameter is unused.
+        """
         data = (f'{{"currency":"{currency}","instrument":"{instrument}",'
                 f'"price":{price},"volume":{volume},"orderSide":"{order_side}",'
                 f'"ordertype":"{order_type}","clientRequestId":"NA"}}')
         return self.request("/order/create", data)
 
     def market_bid(self, instrument: str, currency: str, volume: int):
+        """Bid for a volume in a market at the best available price."""
         return self.create_order(instrument, currency, 0, volume, "Bid", "Market")
 
     def market_ask(self, instrument: str, currency: str, volume: int):
+        """Ask for a volume in a market at the best available price."""
         return self.create_order(instrument, currency, 0, volume, "Ask", "Market")
 
     def limit_bid(self, instrument: str, currency: str, price: int, volume: int):
+        """Bid for a volume in a market at the specified price."""
         return self.create_order(instrument, currency, price, volume, "Bid", "Limit")
 
     def limit_ask(self, instrument: str, currency: str, price: int, volume: int):
+        """Ask for a volume in a market at the specified price."""
         return self.create_order(instrument, currency, price, volume, "Ask", "Limit")
 
+    def cancel_order(self, order_ids: List[int]):
+        """
+        Cancel the specified list of orders.
+
+        Returns:
+            {'success' bool, 'errorCode': int, 'errorMessage': str,
+             'responses': [{'success': bool, 'errorCode': int,
+                            'errorMessage': str, 'id': int}]}
+        """
+        data = f'{{"orderIds":{order_ids}}}'
+        return self.request("/order/cancel", data)
 
 interface = RESTInterface(public_key, private_key)
+print(interface.cancel_order([907396556]))
