@@ -1,8 +1,9 @@
 import time
 import hmac, hashlib
-import urllib.request, urllib.parse
+import urllib.request
 import base64, json
 from typing import Optional
+from collections import OrderedDict
 
 from config import api_url, public_key, private_key
 
@@ -31,12 +32,18 @@ class RESTInterface:
         self.key = public_key
         self.secret = base64.b64decode(private_key)
 
-    def request(self, path, data=None):
+    def request(self, path: str, data: str = None):
+        """
+        path: the request path to append to the base API url
+        data: a dictionary of data to send with in the request.
+              If data is None, a GET request is sent, POST otherwise.
+        """
         timestamp = int(time.time() * 1000)
         
         payload = f"{path}\n{timestamp}\n"
         if data is not None:
             payload += data
+            data = data.encode()
         payload = payload.encode("utf-8")
         signature = base64.b64encode(hmac.new(self.secret, payload, digestmod=hashlib.sha512).digest())
         header = {
@@ -91,14 +98,26 @@ class RESTInterface:
         """
         since = "" if since_id is None else f"?since={since_id}"
         return self.request(f"/market/{instrument}/{currency}/trades{since}")
+    
+    def create_order(self, instrument: str, currency: str,
+                     price: int, volume: int,
+                     order_side: str, order_type: str):
+        data = (f'{{"currency":"{currency}","instrument":"{instrument}",'
+                f'"price":{price},"volume":{volume},"orderSide":"{order_side}",'
+                f'"ordertype":"{order_type}","clientRequestId":"NA"}}')
+        return self.request("/order/create", data)
 
-    def create_order(self, instrument: str, currency: str, price: int, volume: int,
-                     orderside: str, ordertype: str):
-        """
+    def market_bid(self, instrument: str, currency: str, volume: int):
+        return self.create_order(instrument, currency, 0, volume, "Bid", "Market")
 
-        """
+    def market_ask(self, instrument: str, currency: str, volume: int):
+        return self.create_order(instrument, currency, 0, volume, "Ask", "Market")
+
+    def limit_bid(self, instrument: str, currency: str, price: int, volume: int):
+        return self.create_order(instrument, currency, price, volume, "Bid", "Limit")
+
+    def limit_ask(self, instrument: str, currency: str, price: int, volume: int):
+        return self.create_order(instrument, currency, price, volume, "Ask", "Limit")
 
 
 interface = RESTInterface(public_key, private_key)
-print(interface.fee("BTC", "AUD"))
-
