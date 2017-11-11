@@ -5,7 +5,7 @@ import base64, json
 from typing import Optional, List
 from collections import OrderedDict
 
-from config import api_url, public_key, private_key
+from config import api_url
 
 
 class RESTInterface:
@@ -61,13 +61,23 @@ class RESTInterface:
         req = urllib.request.Request(api_url + path, data=data, headers=header)
         return json.load(urllib.request.urlopen(req))
 
-    def balance(self):
+    def balances(self):
         """
         The balance of this account.
         Returns: a list of balances per currency each of the form:
                  {'balance': int, 'pendingFunds': int, 'currency': str}
         """
         return self.request("/account/balance")
+
+    def balance(self, currency: str):
+        """
+        The current balance of this account in the given currency.
+        """
+        balance = [b['balance'] for b in self.balances() \
+                   if b['currency'] == currency]
+        if len(balance) == 0:
+            return 0
+        return balance[0]
 
     def fee(self, instrument: str, currency: str):
         """
@@ -85,6 +95,18 @@ class RESTInterface:
                   'volume24h': float}
         """
         return self.request(f"/market/{instrument}/{currency}/tick")
+
+    def best_ask(self, instrument: str, currency: str):
+        """
+        The current lowest ask price in the given market.
+        """
+        return self.market_tick(instrument, currency)['bestAsk']
+
+    def best_bid(self, instrument: str, currency: str):
+        """
+        The current highest bid price in the given market.
+        """
+        return self.market_tick(instrument, currency)['bestBid']
 
     def market_orderbook(self, instrument: str, currency: str):
         """
@@ -193,5 +215,3 @@ class RESTInterface:
     def transfer_history(self):
         return self.request("/fundtransfer/history")
 
-interface = RESTInterface(public_key, private_key)
-print(interface.transfer_history())
