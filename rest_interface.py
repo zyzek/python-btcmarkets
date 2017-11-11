@@ -11,17 +11,20 @@ from config import api_url, public_key, private_key
 class RESTInterface:
     """
     AUD prices should be to at most 2 decimal places.
-    Prices are fixed point integers such that $1 is 10^8.
+    Prices are fixed point decimals such that $1 (or whatever) is 10^8.
 
-    Order status values:
-        New
-        Placed
-        Failed
-        Error
-        Cancelled
-        Partially Cancelled
-        Fully Matched
-        Partially Matched
+    Throttles:
+    25 calls per 10 seconds:
+        create_order, market_bid, market_ask, limit_bid, limit_ask
+        cancel_order
+        order_detail, order_open_history
+        balance
+        market_tick, market_orderbook, market_trades
+
+    10 calls per 10 seconds:
+        order_history, order_trade_history
+        fee
+        withdraw_crypto, withdraw_eft
     """
 
     def __init__(self, public_key, private_key):
@@ -150,6 +153,45 @@ class RESTInterface:
         """
         data = f'{{"orderIds":{order_ids}}}'
         return self.request("/order/cancel", data)
+    
+    # Haven't properly chararacterised the functionality of these;
+    # need to update them.
+    # P.S. The official API documentation is trash.
+
+    def order_detail(self, order_ids: List[int]):
+        data = f'{{"orderIds":{order_ids}}}'
+        return self.request("/order/detail", data)
+
+    def order_history(self, instrument: str, currency: str, limit: int, since_id: int):
+        data = (f'{{"currency":"{currency}","instrument":"{instrument}",'
+                f'"limit":{limit},"since":{since_id}}}')
+        return self.request("/order/history", data)
+
+    def order_open_history(self, instrument: str, currency: str, limit: int, since_id: int):
+        data = (f'{{"currency":"{currency}","instrument":"{instrument}",'
+                f'"limit":{limit},"since":{since_id}}}')
+        return self.request("/order/open", data)
+
+    def order_trade_history(self, instrument: str, currency: str, limit: int, since_id: int):
+        data = (f'{{"currency":"{currency}","instrument":"{instrument}",'
+                f'"limit":{limit},"since":{since_id}}}')
+        return self.request("/order/trade/history", data)
+    
+    # UNTESTED
+    def withdraw_crypto(self, amount: int, address: str, currency: str):
+        data = f'{{"amount":{amount},"address":"{address}","currency":"{currency}"}}'
+        return self.request("/fundtransfer/withdrawCrypto", data)
+    
+    # UNTESTED
+    def withdraw_eft(self, account_name: str, account_number: str, bank_name: str,
+                     bsb_number: str, amount: int, currency: str):
+        data = (f'{{"accountName":"{account_name}","accountNumber":"{account_number}",'
+                f'"bankName":"{bank_name}","bsbNumber":"{bsb_number}",'
+                f'"amount":{amount},"currency":"{currency}"}}')
+        return self.request("/fundtransfer/withdrawEFT", data)
+
+    def transfer_history(self):
+        return self.request("/fundtransfer/history")
 
 interface = RESTInterface(public_key, private_key)
-print(interface.cancel_order([907396556]))
+print(interface.transfer_history())
